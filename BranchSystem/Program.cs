@@ -1,31 +1,34 @@
-﻿using System;
+﻿using Microsoft.Extensions.Configuration;
+using System;
 using System.Linq;
-
+using Microsoft.Extensions.Configuration.Json;
 namespace BranchSystem
 {
     class Program
     {
+
         static void Main(string[] args)
         {
-            int depth = 4;
-            if (args.Any())
+            IConfigurationRoot configuration = new ConfigurationBuilder()
+                                                .AddJsonFile("appsettings.json", optional: true)
+                                                .Build();
+            int depth;
+            if (!int.TryParse(configuration["Depth"], out depth))
             {
-                if (!int.TryParse(args[0], out depth))
-                {
-                    Console.WriteLine("Please provide a valid depth value");
-                    return;
-                }
+                Console.WriteLine("Please provide a valid depth config");
+                return;
             }
-            
+
             if (depth == 0)
             {
-                Console.WriteLine("Please provide a valid depth value");
+                Console.WriteLine("Please provide a valid depth config");
                 return;
             }
             Console.WriteLine("Depth parameter: "+depth);
             var branchSystem = new BranchSystem(depth);            
             var predictEmptyContainerName = branchSystem.PredictEmptyContainer();
-            var emptyContainerName = branchSystem.RunBalls();
+            branchSystem.RunBalls();
+            var emptyContainerName = branchSystem.GetEmptyContainer();
             Console.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);
             Console.WriteLine("Empty Container Name: " + emptyContainerName);
             if (predictEmptyContainerName == emptyContainerName)

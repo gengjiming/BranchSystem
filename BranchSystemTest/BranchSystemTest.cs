@@ -1,6 +1,7 @@
 using BranchSystem;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -13,16 +14,18 @@ namespace BranchSystemTest
         {
             this.output = output;
         }
-        [Fact]
-        public void TestBranchSystemDepth1()
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        public void TestBranchSystemDepth(int depth)
         {
-            var branchSystem = new BranchSystem.BranchSystem(1);
-            Assert.Equal(2, branchSystem.LeafNodeCount);
-            //set initial direction to left
-            branchSystem.Tree.OpenDirection=GateDirection.Left;
-            var expectEmptyContainerName = "B";
+            var branchSystem = new BranchSystem.BranchSystem(depth);
+            var expectEmptyContainerName= ForcePathForDepth(depth, branchSystem.Tree);            
             var predictEmptyContainerName = branchSystem.PredictEmptyContainer();
-            var emptyContainerName = branchSystem.RunBalls();
+            branchSystem.RunBalls();
+            var emptyContainerName = branchSystem.GetEmptyContainer();
             output.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);
             output.WriteLine("Empty Container Name: " + emptyContainerName);
             Assert.NotEmpty(predictEmptyContainerName);
@@ -30,63 +33,99 @@ namespace BranchSystemTest
             Assert.Equal(predictEmptyContainerName, emptyContainerName);
             Assert.Equal(expectEmptyContainerName, emptyContainerName);
         }
-        [Fact]
-        public void TestBranchSystemDepth2()
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        public void TestPredictEmptyContainer(int depth)
         {
-            var branchSystem = new BranchSystem.BranchSystem(2);
-            Assert.Equal(4, branchSystem.LeafNodeCount);
-            //set initial direction to left
-            branchSystem.Tree.OpenDirection = GateDirection.Left;
-            branchSystem.Tree.Right.OpenDirection = GateDirection.Right;
-            var expectEmptyContainerName = "C";
+            var branchSystem = new BranchSystem.BranchSystem(depth);
+            var expectEmptyContainerName = ForcePathForDepth(depth, branchSystem.Tree);
             var predictEmptyContainerName = branchSystem.PredictEmptyContainer();
-            var emptyContainerName = branchSystem.RunBalls();
-            output.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);
+           
+            output.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);            
+            Assert.NotEmpty(predictEmptyContainerName);            
+            Assert.Equal(expectEmptyContainerName, predictEmptyContainerName);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        public void TestRunBalls(int depth)
+        {
+            var branchSystem = new BranchSystem.BranchSystem(depth);
+            var expectEmptyContainerName = ForcePathForDepth(depth, branchSystem.Tree);          
+            branchSystem.RunBalls();
+            var emptyContainerCount = branchSystem.LeafNodes.Count(d=> !d.BallReceived);
+            output.WriteLine("Empty container count: " + emptyContainerCount);
+            Assert.Equal(1, emptyContainerCount);
+        }
+
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(3)]
+        [InlineData(4)]
+        public void TestGetEmptyContainerName(int depth)
+        {
+            var branchSystem = new BranchSystem.BranchSystem(depth);
+            var expectEmptyContainerName = ForcePathForDepth(depth, branchSystem.Tree);
+            branchSystem.RunBalls();
+            var emptyContainerName = branchSystem.GetEmptyContainer();
             output.WriteLine("Empty Container Name: " + emptyContainerName);
-            Assert.NotEmpty(predictEmptyContainerName);
             Assert.NotEmpty(emptyContainerName);
-            Assert.Equal(predictEmptyContainerName, emptyContainerName);
             Assert.Equal(expectEmptyContainerName, emptyContainerName);
         }
-        [Fact]
-        public void TestBranchSystemDepth3()
+        private string ForcePathForDepth(int depth, ITreeNode node)
         {
-            var branchSystem = new BranchSystem.BranchSystem(3);
-            Assert.Equal(8, branchSystem.LeafNodeCount);
-            //set initial direction to left
-            branchSystem.Tree.OpenDirection = GateDirection.Left;
-            branchSystem.Tree.Right.OpenDirection = GateDirection.Right;
-            branchSystem.Tree.Right.Left.OpenDirection = GateDirection.Left;
-            var expectEmptyContainerName = "F";
-            var predictEmptyContainerName = branchSystem.PredictEmptyContainer();
-            var emptyContainerName = branchSystem.RunBalls();
-            output.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);
-            output.WriteLine("Empty Container Name: " + emptyContainerName);
-            Assert.NotEmpty(predictEmptyContainerName);
-            Assert.NotEmpty(emptyContainerName);
-            Assert.Equal(predictEmptyContainerName, emptyContainerName);
-            Assert.Equal(expectEmptyContainerName, emptyContainerName);
+            var gd = node as GateNode;
+            if (depth == 1)
+            {
+                gd.OpenDirection = GateDirection.Left;
+                return "B";
+            }
+            else if(depth==2)
+            {
+                gd.OpenDirection = GateDirection.Left;
+                (gd.Right as GateNode).OpenDirection = GateDirection.Right;
+                return "C";
+            }
+            else if (depth == 3)
+            {
+                gd.OpenDirection = GateDirection.Left;
+                var right1 = gd.Right as GateNode;
+                right1.OpenDirection = GateDirection.Right;
+                (right1.Left as GateNode).OpenDirection = GateDirection.Left;
+                return "F";
+            }
+            else if(depth==4)
+            {  
+                gd.OpenDirection = GateDirection.Left;
+                var right1 = gd.Right as GateNode;
+                right1.OpenDirection = GateDirection.Right;
+                var left2 = right1.Left as GateNode;
+                left2.OpenDirection = GateDirection.Left;
+                (left2.Right as GateNode).OpenDirection = GateDirection.Right;
+                return "K";
+            }
+            return "";
         }
-        [Fact]
-        public void TestBranchSystemDepth4()
+
+        [Theory]
+        [InlineData(1, 2)]
+        [InlineData(2, 4)]
+        [InlineData(3, 8)]
+        [InlineData(4, 16)]
+        public void TestBuildBranchSystem(int depth,int containerCount)
         {
-            var branchSystem = new BranchSystem.BranchSystem(4);
-            Assert.Equal(16, branchSystem.LeafNodeCount);
-            //set initial direction to left
-            branchSystem.Tree.OpenDirection = GateDirection.Left;
-            branchSystem.Tree.Right.OpenDirection = GateDirection.Right;
-            branchSystem.Tree.Right.Left.OpenDirection = GateDirection.Left;
-            branchSystem.Tree.Right.Left.Right.OpenDirection = GateDirection.Right;
-            var expectEmptyContainerName = "K";
-            var predictEmptyContainerName = branchSystem.PredictEmptyContainer();
-            var emptyContainerName = branchSystem.RunBalls();
-            output.WriteLine("Predict Empty Container Name: " + predictEmptyContainerName);
-            output.WriteLine("Empty Container Name: " + emptyContainerName);
-            Assert.NotEmpty(predictEmptyContainerName);
-            Assert.NotEmpty(emptyContainerName);
-            Assert.Equal(predictEmptyContainerName, emptyContainerName);
-            Assert.Equal(expectEmptyContainerName, emptyContainerName);
+            var branchSystem = new BranchSystem.BranchSystem(depth);
+            Assert.Equal(containerCount, branchSystem.LeafNodeCount);
         }
+
         [Fact]
         public void TestGetNameFromNumber()
         {
